@@ -1,4 +1,4 @@
-# Toolz Pro - Bash Multi-Tool Utility
+# Toolz - Bash Multi-Tool Utility
 
 ## 📋 Project Overview
 
