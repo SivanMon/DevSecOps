@@ -82,25 +82,79 @@ network_info() {
   ss -tunap | head -n 20
 }
 
+service_list() {
+  echo "===== Service Status Table ====="
+  printf "%-45s %-10s %-10s %-10s\n" "SERVICE" "LOAD" "ACTIVE" "SUB"
+
+  systemctl list-units --type=service --no-pager --no-legend | while read -r line; do
+    service_name=$(echo "$line" | awk '{print $1}')
+    load_status=$(echo "$line" | awk '{print $2}')
+    active_status=$(echo "$line" | awk '{print $3}')
+    sub_status=$(echo "$line" | awk '{print $4}')
+
+    printf "%-45s %-10s %-10s %-10s\n" "$service_name" "$load_status" "$active_status" "$sub_status"
+  done
+}
+
+cleanup_temp() {
+  echo "Cleaning temporary files..."
+  sudo rm -rf /tmp/*
+  echo "Temporary files cleaned!"
+}
+
+check_sudo_users() {
+  echo "===== Sudo Users ====="
+  getent group sudo
+}
+
+disk_health() {
+  echo "===== Disk Health ====="
+
+  if ! command -v smartctl &> /dev/null; then
+    echo "The 'smartctl' tool is not installed."
+    echo "Do you want to install 'smartmontools'? (y/n)"
+    read answer
+
+    if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
+      sudo apt update
+      sudo apt install -y smartmontools
+    else
+      echo "Cannot check disk health without 'smartctl'. Exiting."
+      exit 1
+    fi
+  fi
+
+  sudo smartctl -a /dev/sda
+}
+
+
 help_menu() {
   echo "Usage: $0 [options]"
+  echo "-c    Clean Temp"
+  echo "-d    Disk Health"
   echo "-f    Find Helper"
+  echo "-l    Services Information"
   echo "-s    System Information"
   echo "-p    Process Management"
   echo "-u    User Management"
+  echo "-v   Sudo Users"
   echo "-h    Help Menu"
   echo "-n    Network Info"
 }
 
 # Main Function
 main() {
-  while getopts ":fnspuh" opt; do
+  while getopts ":cflnspuhvd" opt; do
     case $opt in
+      c) cleanup_temp ;;
+      d) disk_health ;;
       f) find_helper ;;
+      l) service_list ;;
       n) network_info ;;
       s) system_info ;;
       p) process_management ;;
       u) user_management ;;
+      v) check_sudo_users ;;
       h) help_menu ;;
       \?) echo "Invalid option: -$OPTARG" >&2; help_menu; exit 1 ;;
     esac
