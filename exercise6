@@ -1,6 +1,0 @@
-word=("hello world")
-length=${#word}
-for ((i=0; i<length; i++))
-  do
-  echo "${word:i:1}"
-done

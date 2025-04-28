@@ -1,6 +1,0 @@
-if [ -e "$1" ]
-then
-  source exercise1 $1
-else
-  printf "$1 does not exist\n"
-fi

@@ -1,6 +1,0 @@
-colors=(blue red yellow pink)
-adjectives=(Beautiful Rich Shiny Cute)
-for ((i=0; i<${#colors[0]}; i++))
-  do
-  echo "${colors[i]} is ${adjectives[i]}"
-done
