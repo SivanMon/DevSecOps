@@ -13,7 +13,6 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 print_banner() {
-  # Detect current hour
   hour=$(date +"%H")
 
   if [ "$hour" -ge 5 ] && [ "$hour" -lt 12 ]; then
@@ -27,15 +26,11 @@ print_banner() {
   fi
 
   echo -e "${YELLOW}"
-  echo " ______           _           _____             "
-  echo "|___  /          | |         |  __ \            "
-  echo "   / / ___   ___ | |_   _____| |__) | __ ___  __"
-  echo "  / / / _ \ / _ \| \ \ / / _ \  ___/ '__/ _ \/ _\` |"
-  echo " / /_| (_) | (_) | |\ V /  __/ |   | | |  __/ (_| |"
-  echo "/_____\___/ \___/|_| \_/ \___|_|   |_|  \___|\__,_|"
+  echo "========================================="
+  echo "               ToolZ Pro                 "
+  echo "========================================="
+  echo -e "${BLUE}${greeting}, welcome to ToolZ Pro by Sivan Monshi!${NC}"
   echo
-  echo -e "${BLUE}${greeting}, welcome to Toolz Pro by Sivan Monshi!${NC}"
-  echo -e "${NC}"
 }
 
 find_helper() {
