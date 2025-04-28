@@ -6,6 +6,13 @@
 # Description: This script provides multiple system management functionalities.
 # =============================================================================
 
+# Color Codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 find_helper() {
   echo "Enter the directory to search in:"
   read directory
@@ -127,15 +134,130 @@ disk_health() {
   sudo smartctl -a /dev/sda
 }
 
+analyze_logs() {
+  echo "Enter log file path (e.g., /var/log/syslog):"
+  read logfile
+  if [[ ! -f "$logfile" ]]; then
+    echo "Invalid file."
+    exit 1
+  fi
+
+  echo "Enter keyword to search for (default: error):"
+  read keyword
+  keyword=${keyword:-error} # אם המשתמש לא הכניס כלום, נשתמש ב-error.
+
+  echo "===== Searching for '$keyword' in $logfile ====="
+  echo
+
+  grep -i --color=always "$keyword" "$logfile" || echo "No matches found."
+
+  echo
+  echo "===== End of Search Report ====="
+}
+
+cron_manager() {
+  echo "===== Crontab Manager ====="
+  echo "Choose an action:"
+  echo "1) List scheduled tasks"
+  echo "2) Add a new scheduled task (guided)"
+  echo "3) Edit existing scheduled tasks"
+  echo "4) Remove all scheduled tasks"
+  read -p "Enter choice [1-4]: " choice
+
+  case $choice in
+    1)
+      echo "===== Current Scheduled Tasks ====="
+      crontab -l || echo "No crontab set."
+      ;;
+
+    2)
+      echo "===== Guided Cron Task Creator ====="
+      echo "Choose schedule frequency:"
+      echo "1) Every X minutes"
+      echo "2) Every X hours"
+      echo "3) Every X days"
+      echo "4) Specific days of the week"
+      echo "5) Specific time daily"
+      echo "6) Custom schedule (advanced)"
+      read -p "Enter your choice [1-6]: " freq
+
+      case $freq in
+        1)
+          read -p "Enter interval in minutes (e.g., 15): " minutes
+          schedule="*/$minutes * * * *"
+          ;;
+        2)
+          read -p "Enter interval in hours (e.g., 4): " hours
+          schedule="0 */$hours * * *"
+          ;;
+        3)
+          read -p "Enter interval in days (e.g., 2): " days
+          schedule="0 0 */$days * *"
+          ;;
+        4)
+          echo "Enter days of the week (e.g., 1,3,5 for Mon, Wed, Fri):"
+          echo "(0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat)"
+          read days
+          read -p "Enter hour (0-23): " hour
+          read -p "Enter minute (0-59): " minute
+          schedule="$minute $hour * * $days"
+          ;;
+        5)
+          read -p "Enter hour (0-23): " hour
+          read -p "Enter minute (0-59): " minute
+          schedule="$minute $hour * * *"
+          ;;
+        6)
+          echo "Enter full cron expression (e.g., '0 5 * * *'):"
+          read schedule
+          ;;
+        *)
+          echo "Invalid frequency choice."
+          return
+          ;;
+      esac
+
+      echo "Enter the command you want to schedule:"
+      read command
+
+      # Safe append to crontab
+      (crontab -l 2>/dev/null; echo "$schedule $command") | crontab -
+
+      echo "New cron job added: $schedule $command"
+      ;;
+
+    3)
+      echo "Opening crontab for editing..."
+      crontab -e
+      ;;
+
+    4)
+      echo "Are you sure you want to delete all scheduled tasks? (y/n)"
+      read confirm
+      if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        crontab -r
+        echo "All scheduled tasks have been removed."
+      else
+        echo "Operation canceled."
+      fi
+      ;;
+
+    *)
+      echo "Invalid choice."
+      ;;
+  esac
+}
 
 help_menu() {
   echo "Usage: $0 [options]"
+  echo "-a    Analyze Logs"
   echo "-c    Clean Temp"
   echo "-d    Disk Health"
   echo "-f    Find Helper"
   echo "-l    Services Information"
   echo "-s    System Information"
   echo "-p    Process Management"
+  echo "-t    Cron Manager"
   echo "-u    User Management"
   echo "-v   Sudo Users"
   echo "-h    Help Menu"
@@ -144,8 +266,9 @@ help_menu() {
 
 # Main Function
 main() {
-  while getopts ":cflnspuhvd" opt; do
+  while getopts ":acflnspuhvdt" opt; do
     case $opt in
+      a) analyze_logs ;;
       c) cleanup_temp ;;
       d) disk_health ;;
       f) find_helper ;;
@@ -153,6 +276,7 @@ main() {
       n) network_info ;;
       s) system_info ;;
       p) process_management ;;
+      t) cron_manager ;;
       u) user_management ;;
       v) check_sudo_users ;;
       h) help_menu ;;
