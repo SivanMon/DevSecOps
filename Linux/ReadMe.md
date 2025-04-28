@@ -1,36 +1,39 @@
-# Toolz - Bash Multi-Tool Utility
+# Toolz Pro - Bash Multi-Tool Utility
 
-## 📋 Description
+## 📋 Project Overview
 
-**Toolz** is a modular, bash-based command-line utility designed to centralize multiple essential system administration tasks into a single, easy-to-use script.
+**Toolz** is a modular, interactive Bash utility that centralizes critical Linux system administration tasks into a single powerful tool.
 
-It offers interactive helpers for system monitoring, network inspection, disk health checks, user management, and more.
+It simplifies system monitoring, process management, user management, network diagnostics, cron scheduling, and much more.
 
 ---
 
 ## 🚀 Features
 
-- 📁 **Find Helper (`-f`)** — Interactively search for files based on directory and name pattern.
-- 📊 **System Information (`-s`)** — Display memory usage, number of running processes, and disk space usage.
-- 🧠 **Process Management (`-p`)** — View top resource-consuming processes and optionally kill processes by PID.
-- 👥 **User Management (`-u`)** — Show currently logged-in users, active sessions, and recent login history.
-- 🌐 **Network Information (`-n`)** — Display IP addresses and currently active network connections.
-- 🛠️ **Service List (`-l`)** — View a clean table of all system services with their load, active, and sub statuses.
-- 🧹 **Cleanup Temporary Files (`-c`)** — Clear the `/tmp` directory to free up system resources.
-- 🔒 **Sudo Users Check (`-v`)** — List all users with sudo (administrative) privileges.
-- 💽 **Disk Health Check (`-d`)** — Analyze disk health using `smartctl` and automatically install `smartmontools` if missing.
-- 📜 **Help (`-h`)** — Display a helpful summary of all available options.
+- 📁 **Find Helper (`-f`)** — Search files in a directory based on a filename pattern.
+- 📊 **System Information (`-s`)** — View memory, process count, and disk usage.
+- 🧠 **Process Management (`-p`)** — Display and optionally kill top CPU/memory processes.
+- 👥 **User Management (`-u`)** — Show currently logged-in users and login history.
+- 🌐 **Network Information (`-n`)** — Display IP configurations and active network connections.
+- 🛠️ **Service List (`-l`)** — Show the status of all services running under systemd.
+- 🧹 **Clean Temporary Files (`-c`)** — Remove unnecessary files from `/tmp`.
+- 🔒 **Sudo Users Check (`-v`)** — List users with administrative rights.
+- 💽 **Disk Health Check (`-d`)** — Check disk SMART health, with automatic installer for `smartmontools` if missing.
+- 📜 **Analyze Logs (`-a`)** — Search specific keywords (default `error`) in system logs.
+- 📅 **Cron Manager (`-t`)** — Interactive scheduling of new tasks with guided questions, edit or delete crontab jobs.
+- 📜 **Help (`-h`)** — Display a neat and clean help menu.
 
 ---
 
-## 🛠️ Usage
+## 🛠️ Installation
 
 ```bash
-# Make the script executable
-chmod +x toolz
+# Clone this repository
+git clone https://github.com/your-username/toolz-pro.git
+cd toolz-pro
 
-# Run Toolz with a desired option
-./toolz -s
+# Make the installer executable
+chmod +x install.sh
 
-# View the help menu
-./toolz -h
+# Run the installer
+./install.sh

@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # =============================================================================
-# Toolz - Multi-Tool Bash Utility
+# Toolz Pro - Multi-Tool Bash Utility
 # Author: Sivan Monshi
-# Description: This script provides multiple system management functionalities.
 # =============================================================================
 
 # Color Codes
@@ -14,83 +13,82 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 find_helper() {
-  echo "Enter the directory to search in:"
+  echo -e "${BLUE}Enter the directory to search in:${NC}"
   read directory
   if [[ ! -d "$directory" ]]; then
-    echo "Invalid directory."
+    echo -e "${RED}Invalid directory.${NC}"
     exit 1
   fi
 
-  echo "Enter the search pattern (e.g., '*.txt'):"
+  echo -e "${BLUE}Enter the search pattern (e.g., '*.txt'):${NC}"
   read pattern
 
-  echo "Searching for files..."
+  echo -e "${YELLOW}Searching for files...${NC}"
   find "$directory" -name "$pattern"
 }
 
 system_info() {
-  echo "Memory Usage:"
+  echo -e "${YELLOW}Memory Usage:${NC}"
   free -h
   echo
 
-  echo "Running Processes:"
+  echo -e "${YELLOW}Running Processes:${NC}"
   ps aux | wc -l
   echo
 
-  echo "Disk Usage:"
+  echo -e "${YELLOW}Disk Usage:${NC}"
   df -h
 }
 
 process_management() {
-  echo "Sort processes by: (1) CPU (2) Memory"
+  echo -e "${BLUE}Sort processes by: (1) CPU (2) Memory${NC}"
   read choice
 
   case $choice in
     1) sort_by="%cpu" ;;
     2) sort_by="%mem" ;;
-    3) sort_by="start_time" ;;
-    *) echo "Invalid choice"; exit 1 ;;
+    *) echo -e "${RED}Invalid choice.${NC}"; exit 1 ;;
   esac
 
-  echo "===== Top Processes ====="
+  echo -e "${YELLOW}===== Top Processes =====${NC}"
   printf "%-10s %-8s %-6s %-6s %-30s\n" "USER" "PID" "%CPU" "%MEM" "COMMAND"
 
   ps -eo user:10,pid,%cpu,%mem,comm --sort=-$sort_by | \
     awk 'NR>1 { printf "%-10s %-8s %-6s %-6s %-30.30s\n", $1, $2, $3, $4, $5 }' | \
     head -n 11
 
-  echo "Enter PID to kill (or press Enter to skip):"
+  echo -e "${BLUE}Enter PID to kill (or press Enter to skip):${NC}"
   read pid
   if [[ ! -z "$pid" ]]; then
     kill "$pid"
-    echo "Process $pid killed."
+    echo -e "${GREEN}Process $pid killed.${NC}"
   fi
 }
 
 user_management() {
-  echo "Currently logged-in users:"
+  echo -e "${YELLOW}Currently logged-in users:${NC}"
   who
   echo
 
-  echo "User sessions and activities:"
+  echo -e "${YELLOW}User sessions and activities:${NC}"
   w
   echo
 
-  echo "Recent logins:"
+  echo -e "${YELLOW}Recent logins:${NC}"
   last | head
 }
 
 network_info() {
-  echo "===== Network Information ====="
+  echo -e "${YELLOW}===== Network Information =====${NC}"
   ip addr show
   echo
 
-  echo "===== Active Connections ====="
+  echo -e "${YELLOW}===== Active Connections =====${NC}"
   ss -tunap | head -n 20
 }
 
 service_list() {
-  echo "===== Service Status Table ====="
+  echo -e "${YELLOW}===== Service Status Table =====${NC}"
   printf "%-45s %-10s %-10s %-10s\n" "SERVICE" "LOAD" "ACTIVE" "SUB"
 
   systemctl list-units --type=service --no-pager --no-legend | while read -r line; do
@@ -104,29 +102,29 @@ service_list() {
 }
 
 cleanup_temp() {
-  echo "Cleaning temporary files..."
+  echo -e "${YELLOW}Cleaning temporary files...${NC}"
   sudo rm -rf /tmp/*
-  echo "Temporary files cleaned!"
+  echo -e "${GREEN}Temporary files cleaned!${NC}"
 }
 
 check_sudo_users() {
-  echo "===== Sudo Users ====="
+  echo -e "${YELLOW}===== Sudo Users =====${NC}"
   getent group sudo
 }
 
 disk_health() {
-  echo "===== Disk Health ====="
+  echo -e "${YELLOW}===== Disk Health =====${NC}"
 
   if ! command -v smartctl &> /dev/null; then
-    echo "The 'smartctl' tool is not installed."
-    echo "Do you want to install 'smartmontools'? (y/n)"
+    echo -e "${RED}The 'smartctl' tool is not installed.${NC}"
+    echo -e "${BLUE}Do you want to install 'smartmontools'? (y/n)${NC}"
     read answer
 
     if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
       sudo apt update
       sudo apt install -y smartmontools
     else
-      echo "Cannot check disk health without 'smartctl'. Exiting."
+      echo -e "${RED}Cannot check disk health without 'smartctl'. Exiting.${NC}"
       exit 1
     fi
   fi
@@ -135,28 +133,28 @@ disk_health() {
 }
 
 analyze_logs() {
-  echo "Enter log file path (e.g., /var/log/syslog):"
+  echo -e "${BLUE}Enter log file path (e.g., /var/log/syslog):${NC}"
   read logfile
   if [[ ! -f "$logfile" ]]; then
-    echo "Invalid file."
+    echo -e "${RED}Invalid file.${NC}"
     exit 1
   fi
 
-  echo "Enter keyword to search for (default: error):"
+  echo -e "${BLUE}Enter keyword to search for (default: error):${NC}"
   read keyword
-  keyword=${keyword:-error} # אם המשתמש לא הכניס כלום, נשתמש ב-error.
+  keyword=${keyword:-error}
 
-  echo "===== Searching for '$keyword' in $logfile ====="
+  echo -e "${YELLOW}===== Searching for '$keyword' in $logfile =====${NC}"
   echo
 
-  grep -i --color=always "$keyword" "$logfile" || echo "No matches found."
+  grep -i --color=always "$keyword" "$logfile" || echo -e "${YELLOW}No matches found.${NC}"
 
   echo
-  echo "===== End of Search Report ====="
+  echo -e "${YELLOW}===== End of Search Report =====${NC}"
 }
 
 cron_manager() {
-  echo "===== Crontab Manager ====="
+  echo -e "${YELLOW}===== Crontab Manager =====${NC}"
   echo "Choose an action:"
   echo "1) List scheduled tasks"
   echo "2) Add a new scheduled task (guided)"
@@ -166,12 +164,10 @@ cron_manager() {
 
   case $choice in
     1)
-      echo "===== Current Scheduled Tasks ====="
-      crontab -l || echo "No crontab set."
+      crontab -l || echo -e "${YELLOW}No crontab set.${NC}"
       ;;
-
     2)
-      echo "===== Guided Cron Task Creator ====="
+      echo -e "${YELLOW}===== Guided Cron Task Creator =====${NC}"
       echo "Choose schedule frequency:"
       echo "1) Every X minutes"
       echo "2) Every X hours"
@@ -182,90 +178,75 @@ cron_manager() {
       read -p "Enter your choice [1-6]: " freq
 
       case $freq in
-        1)
-          read -p "Enter interval in minutes (e.g., 15): " minutes
-          schedule="*/$minutes * * * *"
-          ;;
-        2)
-          read -p "Enter interval in hours (e.g., 4): " hours
-          schedule="0 */$hours * * *"
-          ;;
-        3)
-          read -p "Enter interval in days (e.g., 2): " days
-          schedule="0 0 */$days * *"
-          ;;
+        1) read -p "Minutes interval: " minutes; schedule="*/$minutes * * * *" ;;
+        2) read -p "Hours interval: " hours; schedule="0 */$hours * * *" ;;
+        3) read -p "Days interval: " days; schedule="0 0 */$days * *" ;;
         4)
-          echo "Enter days of the week (e.g., 1,3,5 for Mon, Wed, Fri):"
-          echo "(0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat)"
+          echo "Enter days (e.g., 1,3,5 for Mon,Wed,Fri):"
           read days
           read -p "Enter hour (0-23): " hour
           read -p "Enter minute (0-59): " minute
           schedule="$minute $hour * * $days"
           ;;
         5)
-          read -p "Enter hour (0-23): " hour
-          read -p "Enter minute (0-59): " minute
+          read -p "Hour (0-23): " hour
+          read -p "Minute (0-59): " minute
           schedule="$minute $hour * * *"
           ;;
         6)
           echo "Enter full cron expression (e.g., '0 5 * * *'):"
           read schedule
           ;;
-        *)
-          echo "Invalid frequency choice."
-          return
-          ;;
+        *) echo -e "${RED}Invalid frequency choice.${NC}"; return ;;
       esac
 
-      echo "Enter the command you want to schedule:"
+      echo "Enter command to execute:"
       read command
 
-      # Safe append to crontab
       (crontab -l 2>/dev/null; echo "$schedule $command") | crontab -
-
-      echo "New cron job added: $schedule $command"
+      echo -e "${GREEN}New cron job added: $schedule $command${NC}"
       ;;
-
     3)
-      echo "Opening crontab for editing..."
       crontab -e
       ;;
-
     4)
-      echo "Are you sure you want to delete all scheduled tasks? (y/n)"
+      echo -e "${RED}Are you sure you want to delete all tasks? (y/n)${NC}"
       read confirm
       if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         crontab -r
-        echo "All scheduled tasks have been removed."
+        echo -e "${GREEN}All scheduled tasks removed.${NC}"
       else
-        echo "Operation canceled."
+        echo -e "${YELLOW}Operation canceled.${NC}"
       fi
       ;;
-
     *)
-      echo "Invalid choice."
+      echo -e "${RED}Invalid choice.${NC}"
       ;;
   esac
 }
 
 help_menu() {
-  echo "Usage: $0 [options]"
-  echo "-a    Analyze Logs"
-  echo "-c    Clean Temp"
-  echo "-d    Disk Health"
-  echo "-f    Find Helper"
-  echo "-l    Services Information"
-  echo "-s    System Information"
-  echo "-p    Process Management"
-  echo "-t    Cron Manager"
-  echo "-u    User Management"
-  echo "-v   Sudo Users"
-  echo "-h    Help Menu"
-  echo "-n    Network Info"
+  echo -e "${BLUE}Usage: $0 [options]${NC}"
+  echo -e "-a\tAnalyze Logs"
+  echo -e "-c\tClean Temporary Files"
+  echo -e "-d\tDisk Health Check"
+  echo -e "-f\tFind Helper"
+  echo -e "-l\tList Services"
+  echo -e "-n\tNetwork Information"
+  echo -e "-s\tSystem Information"
+  echo -e "-p\tProcess Management"
+  echo -e "-t\tCron Manager"
+  echo -e "-u\tUser Management"
+  echo -e "-v\tList Sudo Users"
+  echo -e "-h\tHelp Menu"
 }
 
-# Main Function
 main() {
+  if [[ $# -eq 0 ]]; then
+    help_menu
+    exit 0
+  fi
+
   while getopts ":acflnspuhvdt" opt; do
     case $opt in
       a) analyze_logs ;;
@@ -280,7 +261,7 @@ main() {
       u) user_management ;;
       v) check_sudo_users ;;
       h) help_menu ;;
-      \?) echo "Invalid option: -$OPTARG" >&2; help_menu; exit 1 ;;
+      \?) echo -e "${RED}Invalid option: -$OPTARG${NC}" >&2; help_menu; exit 1 ;;
     esac
   done
 }
