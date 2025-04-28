@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# =============================================================================
+# Toolz - Multi-Tool Bash Utility
+# Author: Sivan Monshi
+# Description: This script provides multiple system management functionalities.
+# =============================================================================
+
+find_helper() {
+  echo "Enter the directory to search in:"
+  read directory
+  if [[ ! -d "$directory" ]]; then
+    echo "Invalid directory."
+    exit 1
+  fi
+
+  echo "Enter the search pattern (e.g., '*.txt'):"
+  read pattern
+
+  echo "Searching for files..."
+  find "$directory" -name "$pattern"
+}
+
+system_info() {
+  echo "Memory Usage:"
+  free -h
+  echo
+
+  echo "Running Processes:"
+  ps aux | wc -l
+  echo
+
+  echo "Disk Usage:"
+  df -h
+}
+
+process_management() {
+  echo "Sort processes by: (1) CPU (2) Memory"
+  read choice
+
+  case $choice in
+    1) sort_by="%cpu" ;;
+    2) sort_by="%mem" ;;
+    3) sort_by="start_time" ;;
+    *) echo "Invalid choice"; exit 1 ;;
+  esac
+
+  echo "===== Top Processes ====="
+  printf "%-10s %-8s %-6s %-6s %-30s\n" "USER" "PID" "%CPU" "%MEM" "COMMAND"
+
+  ps -eo user:10,pid,%cpu,%mem,comm --sort=-$sort_by | \
+    awk 'NR>1 { printf "%-10s %-8s %-6s %-6s %-30.30s\n", $1, $2, $3, $4, $5 }' | \
+    head -n 11
+
+  echo "Enter PID to kill (or press Enter to skip):"
+  read pid
+  if [[ ! -z "$pid" ]]; then
+    kill "$pid"
+    echo "Process $pid killed."
+  fi
+}
+
+user_management() {
+  echo "Currently logged-in users:"
+  who
+  echo
+
+  echo "User sessions and activities:"
+  w
+  echo
+
+  echo "Recent logins:"
+  last | head
+}
+
+network_info() {
+  echo "===== Network Information ====="
+  ip addr show
+  echo
+
+  echo "===== Active Connections ====="
+  ss -tunap | head -n 20
+}
+
+help_menu() {
+  echo "Usage: $0 [options]"
+  echo "-f    Find Helper"
+  echo "-s    System Information"
+  echo "-p    Process Management"
+  echo "-u    User Management"
+  echo "-h    Help Menu"
+  echo "-n    Network Info"
+}
+
+# Main Function
+main() {
+  while getopts ":fnspuh" opt; do
+    case $opt in
+      f) find_helper ;;
+      n) network_info ;;
+      s) system_info ;;
+      p) process_management ;;
+      u) user_management ;;
+      h) help_menu ;;
+      \?) echo "Invalid option: -$OPTARG" >&2; help_menu; exit 1 ;;
+    esac
+  done
+}
+main "$@"
