@@ -1,8 +1,11 @@
-# Toolz - Bash Multi-Tool Utility
+# Toolz Pro - Bash Multi-Tool Utility
+
+![Bash](https://img.shields.io/badge/Bash-Scripting-4EAA25?logo=gnu-bash)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
 ## 📋 Project Overview
 
-**Toolz** is a modular, interactive Bash utility that centralizes critical Linux system administration tasks into a single powerful tool.
+**Toolz Pro** is a modular, interactive Bash utility that centralizes critical Linux system administration tasks into a single powerful tool.
 
 It simplifies system monitoring, process management, user management, network diagnostics, cron scheduling, and much more.
 
