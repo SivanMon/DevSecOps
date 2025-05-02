@@ -3,6 +3,7 @@
 # =============================================================================
 # Toolz Pro - Multi-Tool Bash Utility
 # Author: Sivan Monshi
+# Reviewed and improved version
 # =============================================================================
 
 # Color Codes
@@ -12,9 +13,43 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Exit codes
+EXIT_SUCCESS=0
+EXIT_ERROR=1
+EXIT_INVALID_ARGS=2
+
+# Check if the script is run as root
+check_root() {
+  if [[ $EUID -ne 0 ]]; then
+    echo -e "${YELLOW}This function requires sudo privileges.${NC}"
+    echo -e "${BLUE}Do you want to run with sudo? (y/n)${NC}"
+    read -r answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      return 0
+    else
+      echo -e "${RED}Operation canceled.${NC}"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+# Safe command execution with error handling
+safe_exec() {
+  "$@"
+  local status=$?
+  if [[ $status -ne 0 ]]; then
+    echo -e "${RED}Command failed with exit code $status: $*${NC}" >&2
+    return $status
+  fi
+  return 0
+}
+
 print_banner() {
+  local hour
   hour=$(date +"%H")
 
+  local greeting
   if [ "$hour" -ge 5 ] && [ "$hour" -lt 12 ]; then
     greeting="Good Morning"
   elif [ "$hour" -ge 12 ] && [ "$hour" -lt 17 ]; then
@@ -35,157 +70,310 @@ print_banner() {
 
 find_helper() {
   echo -e "${BLUE}Enter the directory to search in:${NC}"
-  read directory
+  read -r directory
   if [[ ! -d "$directory" ]]; then
-    echo -e "${RED}Invalid directory.${NC}"
-    exit 1
+    echo -e "${RED}Invalid directory: $directory${NC}"
+    return $EXIT_ERROR
   fi
 
   echo -e "${BLUE}Enter the search pattern (e.g., '*.txt'):${NC}"
-  read pattern
+  read -r pattern
+  
+  # Validate pattern is not empty
+  if [[ -z "$pattern" ]]; then
+    echo -e "${RED}Search pattern cannot be empty.${NC}"
+    return $EXIT_ERROR
+  fi
 
   echo -e "${YELLOW}Searching for files...${NC}"
-  find "$directory" -name "$pattern"
+  if ! find "$directory" -name "$pattern" 2>/dev/null; then
+    echo -e "${YELLOW}No files found matching the pattern.${NC}"
+  fi
 }
 
 system_info() {
   echo -e "${YELLOW}Memory Usage:${NC}"
-  free -h
+  if ! free -h; then
+    echo -e "${RED}Failed to retrieve memory information.${NC}"
+  fi
   echo
 
   echo -e "${YELLOW}Running Processes:${NC}"
-  ps aux | wc -l
+  local process_count
+  process_count=$(ps aux | wc -l)
+  echo "$((process_count - 1)) processes" # Subtract header line
   echo
 
   echo -e "${YELLOW}Disk Usage:${NC}"
-  df -h
+  if ! df -h; then
+    echo -e "${RED}Failed to retrieve disk usage information.${NC}"
+  fi
 }
 
 process_management() {
   echo -e "${BLUE}Sort processes by: (1) CPU (2) Memory${NC}"
-  read choice
+  read -r choice
 
+  local sort_by
   case $choice in
     1) sort_by="%cpu" ;;
     2) sort_by="%mem" ;;
-    *) echo -e "${RED}Invalid choice.${NC}"; exit 1 ;;
+    *) echo -e "${RED}Invalid choice. Please select 1 or 2.${NC}"; return $EXIT_INVALID_ARGS ;;
   esac
 
   echo -e "${YELLOW}===== Top Processes =====${NC}"
   printf "%-10s %-8s %-6s %-6s %-30s\n" "USER" "PID" "%CPU" "%MEM" "COMMAND"
 
-  ps -eo user:10,pid,%cpu,%mem,comm --sort=-$sort_by | \
+  if ! ps -eo user:10,pid,%cpu,%mem,comm --sort=-"$sort_by" | \
     awk 'NR>1 { printf "%-10s %-8s %-6s %-6s %-30.30s\n", $1, $2, $3, $4, $5 }' | \
-    head -n 11
+    head -n 11; then
+    echo -e "${RED}Failed to retrieve process information.${NC}"
+    return $EXIT_ERROR
+  fi
 
   echo -e "${BLUE}Enter PID to kill (or press Enter to skip):${NC}"
-  read pid
-  if [[ ! -z "$pid" ]]; then
-    kill "$pid"
-    echo -e "${GREEN}Process $pid killed.${NC}"
+  read -r pid
+  if [[ -n "$pid" ]]; then
+    # Validate PID is numeric
+    if ! [[ "$pid" =~ ^[0-9]+$ ]]; then
+      echo -e "${RED}Invalid PID: $pid. PID must be numeric.${NC}"
+      return $EXIT_INVALID_ARGS
+    fi
+    
+    # Check if process exists
+    if ! ps -p "$pid" > /dev/null; then
+      echo -e "${RED}Process $pid does not exist.${NC}"
+      return $EXIT_ERROR
+    fi
+    
+    # Confirm before killing
+    echo -e "${YELLOW}Are you sure you want to kill process $pid? (y/n)${NC}"
+    read -r confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+      if kill "$pid"; then
+        echo -e "${GREEN}Process $pid killed.${NC}"
+      else
+        echo -e "${RED}Failed to kill process $pid.${NC}"
+      fi
+    else
+      echo -e "${YELLOW}Operation canceled.${NC}"
+    fi
   fi
 }
 
 user_management() {
   echo -e "${YELLOW}Currently logged-in users:${NC}"
-  who
+  if ! who; then
+    echo -e "${RED}Failed to retrieve logged-in user information.${NC}"
+  fi
   echo
 
   echo -e "${YELLOW}User sessions and activities:${NC}"
-  w
+  if ! w; then
+    echo -e "${RED}Failed to retrieve user sessions information.${NC}"
+  fi
   echo
 
   echo -e "${YELLOW}Recent logins:${NC}"
-  last | head
+  if ! last | head; then
+    echo -e "${RED}Failed to retrieve recent login information.${NC}"
+  fi
 }
 
 network_info() {
   echo -e "${YELLOW}===== Network Information =====${NC}"
-  ip addr show
+  if command -v ip &> /dev/null; then
+    if ! ip addr show; then
+      echo -e "${RED}Failed to retrieve network interface information.${NC}"
+    fi
+  else
+    if ! ifconfig; then
+      echo -e "${RED}Failed to retrieve network interface information.${NC}"
+    fi
+  fi
   echo
 
   echo -e "${YELLOW}===== Active Connections =====${NC}"
-  ss -tunap | head -n 20
+  if command -v ss &> /dev/null; then
+    if ! ss -tunap | head -n 20; then
+      echo -e "${RED}Failed to retrieve connection information.${NC}"
+    fi
+  else
+    if ! netstat -tunapl | head -n 20; then
+      echo -e "${RED}Failed to retrieve connection information.${NC}"
+    fi
+  fi
 }
 
 service_list() {
+  if ! command -v systemctl &> /dev/null; then
+    echo -e "${RED}systemctl is not available on this system.${NC}"
+    return $EXIT_ERROR
+  fi
+
   echo -e "${YELLOW}===== Service Status Table =====${NC}"
   printf "%-45s %-10s %-10s %-10s\n" "SERVICE" "LOAD" "ACTIVE" "SUB"
 
-  systemctl list-units --type=service --no-pager --no-legend | while read -r line; do
+  if ! systemctl list-units --type=service --no-pager --no-legend | while read -r line; do
     service_name=$(echo "$line" | awk '{print $1}')
     load_status=$(echo "$line" | awk '{print $2}')
     active_status=$(echo "$line" | awk '{print $3}')
     sub_status=$(echo "$line" | awk '{print $4}')
 
     printf "%-45s %-10s %-10s %-10s\n" "$service_name" "$load_status" "$active_status" "$sub_status"
-  done
+  done; then
+    echo -e "${RED}Failed to retrieve service information.${NC}"
+  fi
 }
 
 cleanup_temp() {
-  echo -e "${YELLOW}Cleaning temporary files...${NC}"
-  sudo rm -rf /tmp/*
-  echo -e "${GREEN}Temporary files cleaned!${NC}"
+  if ! check_root; then
+    return $EXIT_ERROR
+  fi
+
+  echo -e "${YELLOW}This will clean all files in /tmp/. Are you sure? (y/n)${NC}"
+  read -r confirm
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Cleaning temporary files...${NC}"
+    if sudo find /tmp -type f -delete; then
+      echo -e "${GREEN}Temporary files cleaned!${NC}"
+    else
+      echo -e "${RED}Failed to clean temporary files.${NC}"
+      return $EXIT_ERROR
+    fi
+  else
+    echo -e "${YELLOW}Operation canceled.${NC}"
+  fi
 }
 
 check_sudo_users() {
   echo -e "${YELLOW}===== Sudo Users =====${NC}"
-  getent group sudo
+  if command -v getent &> /dev/null; then
+    if ! getent group sudo; then
+      echo -e "${RED}Failed to retrieve sudo users information.${NC}"
+    fi
+  else
+    if ! grep -Po '^sudo.+:\K.*$' /etc/group; then
+      echo -e "${RED}Failed to retrieve sudo users information.${NC}"
+    fi
+  fi
 }
 
 disk_health() {
+  if ! check_root; then
+    return $EXIT_ERROR
+  fi
+
   echo -e "${YELLOW}===== Disk Health =====${NC}"
 
   if ! command -v smartctl &> /dev/null; then
     echo -e "${RED}The 'smartctl' tool is not installed.${NC}"
     echo -e "${BLUE}Do you want to install 'smartmontools'? (y/n)${NC}"
-    read answer
+    read -r answer
 
-    if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
-      sudo apt update
-      sudo apt install -y smartmontools
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      if command -v apt &> /dev/null; then
+        if ! sudo apt update && sudo apt install -y smartmontools; then
+          echo -e "${RED}Failed to install smartmontools.${NC}"
+          return $EXIT_ERROR
+        fi
+      elif command -v yum &> /dev/null; then
+        if ! sudo yum install -y smartmontools; then
+          echo -e "${RED}Failed to install smartmontools.${NC}"
+          return $EXIT_ERROR
+        fi
+      else
+        echo -e "${RED}Package manager not found. Please install smartmontools manually.${NC}"
+        return $EXIT_ERROR
+      fi
     else
       echo -e "${RED}Cannot check disk health without 'smartctl'. Exiting.${NC}"
-      exit 1
+      return $EXIT_ERROR
     fi
   fi
 
-  sudo smartctl -a /dev/sda
+  # List available disks
+  echo -e "${YELLOW}Available disks:${NC}"
+  lsblk -d -o NAME,SIZE,MODEL
+  
+  echo -e "${BLUE}Enter disk to check (e.g., sda):${NC}"
+  read -r disk
+  
+  if [[ -z "$disk" ]]; then
+    echo -e "${RED}No disk specified.${NC}"
+    return $EXIT_INVALID_ARGS
+  fi
+  
+  if [[ ! -b "/dev/$disk" ]]; then
+    echo -e "${RED}Disk /dev/$disk does not exist.${NC}"
+    return $EXIT_INVALID_ARGS
+  fi
+
+  if ! sudo smartctl -a "/dev/$disk"; then
+    echo -e "${RED}Failed to check disk health for /dev/$disk.${NC}"
+    return $EXIT_ERROR
+  fi
 }
 
 analyze_logs() {
   echo -e "${BLUE}Enter log file path (e.g., /var/log/syslog):${NC}"
-  read logfile
+  read -r logfile
   if [[ ! -f "$logfile" ]]; then
-    echo -e "${RED}Invalid file.${NC}"
-    exit 1
+    echo -e "${RED}Invalid file: $logfile${NC}"
+    return $EXIT_INVALID_ARGS
+  fi
+
+  # Check if the file is readable
+  if [[ ! -r "$logfile" ]]; then
+    echo -e "${YELLOW}File $logfile is not readable. Do you want to use sudo? (y/n)${NC}"
+    read -r use_sudo
+    if [[ "$use_sudo" =~ ^[Yy]$ ]]; then
+      if ! check_root; then
+        return $EXIT_ERROR
+      fi
+      sudo_prefix="sudo "
+    else
+      echo -e "${RED}Cannot read log file without proper permissions.${NC}"
+      return $EXIT_ERROR
+    fi
+  else
+    sudo_prefix=""
   fi
 
   echo -e "${BLUE}Enter keyword to search for (default: error):${NC}"
-  read keyword
+  read -r keyword
   keyword=${keyword:-error}
 
   echo -e "${YELLOW}===== Searching for '$keyword' in $logfile =====${NC}"
   echo
 
-  grep -i --color=always "$keyword" "$logfile" || echo -e "${YELLOW}No matches found.${NC}"
+  if ! ${sudo_prefix}grep -i --color=always "$keyword" "$logfile"; then
+    echo -e "${YELLOW}No matches found for '$keyword' in $logfile.${NC}"
+  fi
 
   echo
   echo -e "${YELLOW}===== End of Search Report =====${NC}"
 }
 
 cron_manager() {
+  if ! command -v crontab &> /dev/null; then
+    echo -e "${RED}crontab is not available on this system.${NC}"
+    return $EXIT_ERROR
+  fi
+
   echo -e "${YELLOW}===== Crontab Manager =====${NC}"
   echo "Choose an action:"
   echo "1) List scheduled tasks"
   echo "2) Add a new scheduled task (guided)"
   echo "3) Edit existing scheduled tasks"
   echo "4) Remove all scheduled tasks"
-  read -p "Enter choice [1-4]: " choice
+  read -rp "Enter choice [1-4]: " choice
 
   case $choice in
     1)
-      crontab -l || echo -e "${YELLOW}No crontab set.${NC}"
+      if ! crontab -l 2>/dev/null; then
+        echo -e "${YELLOW}No crontab set.${NC}"
+      fi
       ;;
     2)
       echo -e "${YELLOW}===== Guided Cron Task Creator =====${NC}"
@@ -196,45 +384,123 @@ cron_manager() {
       echo "4) Specific days of the week"
       echo "5) Specific time daily"
       echo "6) Custom schedule (advanced)"
-      read -p "Enter your choice [1-6]: " freq
+      read -rp "Enter your choice [1-6]: " freq
 
+      local schedule
       case $freq in
-        1) read -p "Minutes interval: " minutes; schedule="*/$minutes * * * *" ;;
-        2) read -p "Hours interval: " hours; schedule="0 */$hours * * *" ;;
-        3) read -p "Days interval: " days; schedule="0 0 */$days * *" ;;
+        1) 
+          read -rp "Minutes interval (1-59): " minutes
+          if ! [[ "$minutes" =~ ^[1-9][0-9]?$ ]] || [ "$minutes" -gt 59 ]; then
+            echo -e "${RED}Invalid minutes value. Must be between 1 and 59.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          schedule="*/$minutes * * * *" 
+          ;;
+        2) 
+          read -rp "Hours interval (1-23): " hours
+          if ! [[ "$hours" =~ ^[1-9][0-9]?$ ]] || [ "$hours" -gt 23 ]; then
+            echo -e "${RED}Invalid hours value. Must be between 1 and 23.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          schedule="0 */$hours * * *" 
+          ;;
+        3) 
+          read -rp "Days interval (1-31): " days
+          if ! [[ "$days" =~ ^[1-9][0-9]?$ ]] || [ "$days" -gt 31 ]; then
+            echo -e "${RED}Invalid days value. Must be between 1 and 31.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          schedule="0 0 */$days * *" 
+          ;;
         4)
-          echo "Enter days (e.g., 1,3,5 for Mon,Wed,Fri):"
-          read days
-          read -p "Enter hour (0-23): " hour
-          read -p "Enter minute (0-59): " minute
+          echo "Enter days (0-6, where 0=Sunday, e.g., 1,3,5 for Mon,Wed,Fri):"
+          read -r days
+          # Validate days format
+          if ! [[ "$days" =~ ^[0-6](,[0-6])*$ ]]; then
+            echo -e "${RED}Invalid days format. Use numbers 0-6 separated by commas.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          
+          read -rp "Enter hour (0-23): " hour
+          if ! [[ "$hour" =~ ^[0-9]+$ ]] || [ "$hour" -gt 23 ]; then
+            echo -e "${RED}Invalid hour. Must be between 0 and 23.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          
+          read -rp "Enter minute (0-59): " minute
+          if ! [[ "$minute" =~ ^[0-9]+$ ]] || [ "$minute" -gt 59 ]; then
+            echo -e "${RED}Invalid minute. Must be between 0 and 59.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          
           schedule="$minute $hour * * $days"
           ;;
         5)
-          read -p "Hour (0-23): " hour
-          read -p "Minute (0-59): " minute
+          read -rp "Hour (0-23): " hour
+          if ! [[ "$hour" =~ ^[0-9]+$ ]] || [ "$hour" -gt 23 ]; then
+            echo -e "${RED}Invalid hour. Must be between 0 and 23.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          
+          read -rp "Minute (0-59): " minute
+          if ! [[ "$minute" =~ ^[0-9]+$ ]] || [ "$minute" -gt 59 ]; then
+            echo -e "${RED}Invalid minute. Must be between 0 and 59.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
+          
           schedule="$minute $hour * * *"
           ;;
         6)
           echo "Enter full cron expression (e.g., '0 5 * * *'):"
-          read schedule
+          read -r schedule
+          # Basic validation for cron syntax
+          if ! [[ "$schedule" =~ ^[0-9*,/-]+([ \t]+[0-9*,/-]+){4}$ ]]; then
+            echo -e "${RED}Invalid cron syntax.${NC}"
+            return $EXIT_INVALID_ARGS
+          fi
           ;;
-        *) echo -e "${RED}Invalid frequency choice.${NC}"; return ;;
+        *)
+          echo -e "${RED}Invalid frequency choice.${NC}"
+          return $EXIT_INVALID_ARGS
+          ;;
       esac
 
       echo "Enter command to execute:"
-      read command
+      read -r command
+      
+      if [[ -z "$command" ]]; then
+        echo -e "${RED}Command cannot be empty.${NC}"
+        return $EXIT_INVALID_ARGS
+      fi
 
-      (crontab -l 2>/dev/null; echo "$schedule $command") | crontab -
-      echo -e "${GREEN}New cron job added: $schedule $command${NC}"
+      echo -e "${YELLOW}Creating cron job: $schedule $command${NC}"
+      echo -e "${YELLOW}Is this correct? (y/n)${NC}"
+      read -r confirm
+      if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if (crontab -l 2>/dev/null; echo "$schedule $command") | crontab -; then
+          echo -e "${GREEN}New cron job added: $schedule $command${NC}"
+        else
+          echo -e "${RED}Failed to add cron job.${NC}"
+          return $EXIT_ERROR
+        fi
+      else
+        echo -e "${YELLOW}Operation canceled.${NC}"
+      fi
       ;;
     3)
-      crontab -e
+      if ! crontab -e; then
+        echo -e "${RED}Failed to edit crontab.${NC}"
+        return $EXIT_ERROR
+      fi
       ;;
     4)
-      echo -e "${RED}Are you sure you want to delete all tasks? (y/n)${NC}"
-      read confirm
-      if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-        crontab -r
+      echo -e "${RED}Are you sure you want to delete all tasks? This cannot be undone. (y/n)${NC}"
+      read -r confirm
+      if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if ! crontab -r; then
+          echo -e "${RED}Failed to remove scheduled tasks.${NC}"
+          return $EXIT_ERROR
+        fi
         echo -e "${GREEN}All scheduled tasks removed.${NC}"
       else
         echo -e "${YELLOW}Operation canceled.${NC}"
@@ -242,31 +508,60 @@ cron_manager() {
       ;;
     *)
       echo -e "${RED}Invalid choice.${NC}"
+      return $EXIT_INVALID_ARGS
       ;;
   esac
 }
 
 help_menu() {
   echo -e "${BLUE}Usage: $0 [options]${NC}"
-  echo -e "-a\tAnalyze Logs"
-  echo -e "-c\tClean Temporary Files"
-  echo -e "-d\tDisk Health Check"
-  echo -e "-f\tFind Helper"
-  echo -e "-l\tList Services"
-  echo -e "-n\tNetwork Information"
-  echo -e "-s\tSystem Information"
-  echo -e "-p\tProcess Management"
-  echo -e "-t\tCron Manager"
-  echo -e "-u\tUser Management"
-  echo -e "-v\tList Sudo Users"
-  echo -e "-h\tHelp Menu"
+  echo -e "${YELLOW}Available options:${NC}"
+  echo -e "  -a\tAnalyze Logs"
+  echo -e "  -c\tClean Temporary Files"
+  echo -e "  -d\tDisk Health Check"
+  echo -e "  -f\tFind Helper"
+  echo -e "  -l\tList Services"
+  echo -e "  -n\tNetwork Information"
+  echo -e "  -s\tSystem Information"
+  echo -e "  -p\tProcess Management"
+  echo -e "  -t\tCron Manager"
+  echo -e "  -u\tUser Management"
+  echo -e "  -v\tList Sudo Users"
+  echo -e "  -h\tHelp Menu"
+  echo
+  echo -e "${YELLOW}Examples:${NC}"
+  echo -e "  $0 -s\t\tShow system information"
+  echo -e "  $0 -a\t\tAnalyze log files"
+}
+
+# Check for dependencies
+check_dependencies() {
+  local missing_deps=()
+  
+  # List of common dependencies
+  local deps=("ps" "grep" "awk" "find")
+  
+  for dep in "${deps[@]}"; do
+    if ! command -v "$dep" &> /dev/null; then
+      missing_deps+=("$dep")
+    fi
+  done
+  
+  if [[ ${#missing_deps[@]} -gt 0 ]]; then
+    echo -e "${RED}Missing dependencies: ${missing_deps[*]}${NC}"
+    echo -e "${YELLOW}Please install these utilities before using this script.${NC}"
+    exit $EXIT_ERROR
+  fi
 }
 
 main() {
+  # Check dependencies first
+  check_dependencies
+  
   print_banner
   if [[ $# -eq 0 ]]; then
     help_menu
-    exit 0
+    exit $EXIT_SUCCESS
   fi
 
   while getopts ":acflnspuhvdt" opt; do
@@ -283,8 +578,10 @@ main() {
       u) user_management ;;
       v) check_sudo_users ;;
       h) help_menu ;;
-      \?) echo -e "${RED}Invalid option: -$OPTARG${NC}" >&2; help_menu; exit 1 ;;
+      \?) echo -e "${RED}Invalid option: -$OPTARG${NC}" >&2; help_menu; exit $EXIT_INVALID_ARGS ;;
     esac
   done
 }
+
+# Execute main function with all arguments
 main "$@"
