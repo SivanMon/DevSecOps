@@ -1,5 +1,0 @@
-if [[ -d "$1" ]]; then
- printf "$1 is a dir\n"
-else
- printf "$1 is a file\n"
-fi

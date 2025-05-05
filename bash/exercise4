@@ -1,4 +1,0 @@
-for color in blue red yellow pink
-  do
-  printf "%s\n" "$color"
-done
