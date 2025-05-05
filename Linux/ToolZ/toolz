@@ -178,6 +178,57 @@ user_management() {
   if ! last | head; then
     echo -e "${RED}Failed to retrieve recent login information.${NC}"
   fi
+  echo
+
+  echo -e "${YELLOW}Regular (non-system) users (UID ≥ 1000):${NC}"
+  awk -F: '$3 >= 1000 && $3 < 65534 { print $1 }' /etc/passwd
+  echo
+
+  echo -e "${YELLOW}User Management Options:${NC}"
+  echo "1) Add user"
+  echo "2) Delete user"
+  echo "3) Change user password"
+  echo "4) Cancel"
+  read -p "Choose an option [1-4]: " opt
+
+  case $opt in
+    1)
+      read -p "Enter username to add: " newuser
+      if sudo useradd -m "$newuser"; then
+        echo -e "${GREEN}User '$newuser' added.${NC}"
+        sudo passwd "$newuser"
+      else
+        echo -e "${RED}Failed to add user.${NC}"
+      fi
+      ;;
+    2)
+      read -p "Enter username to delete: " deluser
+      read -p "Are you sure you want to delete '$deluser'? (y/n): " confirm
+      if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        if sudo deluser --remove-home "$deluser"; then
+          echo -e "${GREEN}User '$deluser' deleted.${NC}"
+        else
+          echo -e "${RED}Failed to delete user.${NC}"
+        fi
+      else
+        echo -e "${YELLOW}Operation cancelled.${NC}"
+      fi
+      ;;
+    3)
+      read -p "Enter username to change password: " usr
+      if sudo passwd "$usr"; then
+        echo -e "${GREEN}Password updated for '$usr'.${NC}"
+      else
+        echo -e "${RED}Failed to change password.${NC}"
+      fi
+      ;;
+    4)
+      echo -e "${YELLOW}User management cancelled.${NC}"
+      ;;
+    *)
+      echo -e "${RED}Invalid choice.${NC}"
+      ;;
+  esac
 }
 
 network_info() {
