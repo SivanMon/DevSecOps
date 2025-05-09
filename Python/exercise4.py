@@ -1,3 +1,4 @@
+#Fibonacci sequence, tupel exercise
 num1, num2 = 0,1
 fibonacci_numbers = []
 
