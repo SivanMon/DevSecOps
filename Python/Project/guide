@@ -1,0 +1,55 @@
+Read about substitution ciphers:
+https://en.wikipedia.org/wiki/Substitution_cipher
+
+subs.py 
+
+Data Structures
+===========================================================================
+enc_key (encryption key)
+best represented as a dictionary:
+{'a':'d', 'b':'t', 'c':'y', 'd':'m'...….}
+
+---------------------------------------------------
+dec_key (decryption key):
+Best kept the same as with enc_key.
+
+enc:
+A B C D E F G
+D T Z E K A B
+
+dec:
+A B C D E
+F G ? A D
+
+
+
+Functions:
+===========================================================================
+make_enc_key  - a function that creates a and return a key (randomally created)
+                Parameters: none (0 parameters)
+                return: enc_key 
+
+compute_dec_key - accepts an enc_key and returns a dec key
+                parameters: 1 (enc_key
+                return: 
+                       dec_key
+
+encrypt_text  - a Function that accepts some clear text and an enc_key, and returns encrypted text
+                Parameters: 
+                       text
+                       enc_key
+                return:
+                       encrypted text
+
+decrypt_text   - a function that accepts some encrypted text and a dec_key and returns clear text.
+                Parameters:
+                       encrypted text
+                       decryption key
+                returns:
+                       clear text
+       
+test_all   - a function that demonstrates it all:
+              * create an enc_key
+              * compute a dec_key from it
+              * encrypt some text
+              * decrypt that text back to clear text
