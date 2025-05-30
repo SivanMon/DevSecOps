@@ -48,5 +48,5 @@ def test_all(text):
         print("decryption failed")
         return False
 
-test_all("Hello World")
+test_all(input("Enter text dcrypet: "))
 
