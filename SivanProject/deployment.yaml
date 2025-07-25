@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-sivan
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello-sivan
+  template:
+    metadata:
+      labels:
+        app: hello-sivan
+    spec:
+      containers:
+      - name: hello-world
+        image: sivanmonshi/hello:0.0.1
+        resources:
+        ports:
+        - containerPort: 5000
